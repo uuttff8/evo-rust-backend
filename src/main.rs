@@ -1,51 +1,57 @@
-use scraper::{ElementRef, Html, Selector};
-use selectors::attr::CaseSensitivity;
-use std::error::Error;
+mod proposals;
 
-struct ProposalRawData {
-    title: String,
-    text_reference: String,
-}
+use crate::proposals::ProposalsRawData;
+use crate::proposals::{ProposalJson, ProposalsJson};
 
-impl ProposalRawData {
-    // return vec because right now i have only vec
-    pub fn new() -> Result<Vec<ProposalRawData>, Box<dyn Error>> {
-        let mut rfcs: Vec<ProposalRawData> = Vec::new();
+use actix_web::{error, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use bytes::{Bytes, BytesMut};
+use futures::StreamExt;
+use json::JsonValue;
 
-        let html = reqwest::get("https://github.com/rust-lang/rfcs/tree/master/text")?.text()?;
-        let document = Html::parse_document(html.as_ref());
+use serde_json;
 
-        let selector_a = Selector::parse("a").unwrap();
+fn lol() -> Result<(), Box<dyn std::error::Error>> {
+    let proposals = ProposalsRawData::new()?.proposal;
 
-        for a in document.select(&selector_a) {
-            let a: ElementRef = a;
+    for mut prop in proposals {
+        let prop_json = ProposalJson {
+            title: prop.title.to_string(),
+            id: prop.get_id().to_string(),
+            date: prop.get_date()?.to_string(),
+            issue: prop.get_issue_link()?.to_string(),
+        };
 
-            if a.value()
-                .has_class("js-navigation-open", CaseSensitivity::CaseSensitive)
-            {
-                if let Some(pat) = a.value().attr("href") {
-                    if pat != "" && pat != "/rust-lang/rfcs" {
-                        let title = a.value().attr("title").expect("huiinya").into();
-                        let href = a.value().attr("href").expect("what a hell").into();
+        let props_json = ProposalsJson {
+            proposal: prop_json,
+        };
 
-                        rfcs.push(ProposalRawData {
-                            title: title,
-                            text_reference: href,
-                        });
-                    }
-                }
-            }
-        }
-
-        Ok(rfcs)
+        let j = serde_json::to_string(&props_json)?;
     }
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-    let proposals = ProposalRawData::new()?;
-
-    dbg!(&proposals[0].title);
-    dbg!(&proposals[0].text_reference);
 
     Ok(())
 }
+
+async fn index_proposals() -> Result<HttpResponse, Error> {
+    let js: String = "asd".into();
+
+    Ok(HttpResponse::Ok().json(js))
+}
+
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
+    HttpServer::new(|| {
+        App::new()
+            .wrap(middleware::Logger::default())
+            .data(web::JsonConfig::default().limit(4096))
+            .service(web::resource("/proposals")
+                .route(web::post().to(index_proposals))
+            )
+    })
+    .bind("127.0.0.1:8080")?
+    .start()
+    .await
+}
+
