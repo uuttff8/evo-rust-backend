@@ -7,9 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "2.0.0-rc"
-actix-rt = "1.0.0"
-actix-service = "1.0.0"
+rocket = "0.4.2"
+lazy_static = "1.4.0"
 
 reqwest = "0.9.18"
 scraper = "0.11.0"

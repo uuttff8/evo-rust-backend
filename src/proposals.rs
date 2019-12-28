@@ -49,7 +49,7 @@ impl ProposalsRawData {
                         let href: String = a.value().attr("href").expect("what a hell").into();
 
                         rfcs.proposal.push(ProposalRawData {
-                            title: title,
+                            title,
                             text_reference: href,
                             text: None,
                         });
@@ -83,11 +83,11 @@ impl ProposalRawData {
 
         let issue: String = issue_line
             .chars()
-            .skip_while(|x| (*x == ':') == false)
+            .skip_while(|x| !(*x == ':'))
             .skip(2)
-            .skip_while(|x| (*x == '(') == false)
+            .skip_while(|x| !(*x == '('))
             .skip(1)
-            .take_while(|x| (*x == ')') == false)
+            .take_while(|x| !(*x == ')'))
             .collect();
 
         Ok(issue)
@@ -105,7 +105,7 @@ impl ProposalRawData {
 
         let date: String = date_line
             .chars()
-            .skip_while(|x| (*x == ':') == false)
+            .skip_while(|x| !((*x == ':')))
             .skip(2)
             .collect();
 
@@ -113,15 +113,11 @@ impl ProposalRawData {
     }
 
     pub fn get_id(&self) -> String {
-        let valid_ref_n: String = self
+        let issue_number: String = self
             .text_reference
             .chars()
             .skip(33) // skip "/rust-lang/rfcs/blob/master/text/"
-            .collect();
-
-        let issue_number: String = valid_ref_n
-            .chars()
-            .take_while(|x| (*x == '-') == false)
+            .take_while(|x| !((*x == '-')))
             .collect();
 
         issue_number
