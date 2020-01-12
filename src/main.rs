@@ -15,7 +15,7 @@ use postgres::{Client, NoTls};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref DB_ADRESS: &'static str = "host=localhost user=postgres dbname=diesel_demo";
+    static ref DB_ADRESS: &'static str = "host=localhost user=postgres";
 }
 
 
@@ -57,7 +57,7 @@ fn generate_proposals() {
 
             println!("{:?}", update_db);
 
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_secs(900));
         }
     });
 }
