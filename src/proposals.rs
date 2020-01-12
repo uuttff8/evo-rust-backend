@@ -83,11 +83,11 @@ impl ProposalRawData {
 
         let issue: String = issue_line
             .chars()
-            .skip_while(|x| !(*x == ':'))
+            .skip_while(|x| *x != ':')
             .skip(2)
-            .skip_while(|x| !(*x == '('))
+            .skip_while(|x| *x != '(')
             .skip(1)
-            .take_while(|x| !(*x == ')'))
+            .take_while(|x| *x != ')')
             .collect();
 
         Ok(issue)
@@ -105,7 +105,7 @@ impl ProposalRawData {
 
         let date: String = date_line
             .chars()
-            .skip_while(|x| !((*x == ':')))
+            .skip_while(|x| !(*x == ':'))
             .skip(2)
             .collect();
 
@@ -117,7 +117,7 @@ impl ProposalRawData {
             .text_reference
             .chars()
             .skip(33) // skip "/rust-lang/rfcs/blob/master/text/"
-            .take_while(|x| !((*x == '-')))
+            .take_while(|x| !(*x == '-'))
             .collect();
 
         issue_number

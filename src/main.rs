@@ -6,40 +6,18 @@ mod proposals;
 use crate::proposals::ProposalsRawData;
 use crate::proposals::{ProposalJson, ProposalsJson};
 
+use std::error::Error;
+use std::thread;
+use std::time::Duration;
+
+use rocket::{get, routes};
+use postgres::{Client, NoTls};
 use lazy_static::lazy_static;
 
-use std::thread::sleep;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
-
-use rocket::get;
-use rocket::response::Responder;
-use rocket::{response, routes, Request, Response};
-
 lazy_static! {
-    static ref CACHE: ProposalCache = ProposalCache::new();
+    static ref DB_ADRESS: &'static str = "host=localhost user=postgres dbname=diesel_demo";
 }
 
-#[derive(Debug, Default)]
-pub struct ProposalCache {
-    pub proposals: Mutex<Vec<String>>,
-    pub cache_timeout: Duration,
-    pub now_time: Duration,
-}
-
-impl ProposalCache {
-    pub fn new() -> Self {
-        ProposalCache {
-            proposals: Mutex::new(Vec::new()),
-            cache_timeout: Duration::from_secs(900),
-            now_time: Instant::now().elapsed(),
-        }
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.now_time > self.cache_timeout
-    }
-}
 
 fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let proposals = ProposalsRawData::new()?.proposal;
@@ -59,34 +37,42 @@ fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         };
 
         let j = serde_json::to_string(&props_json)?;
-
         prop_array.push(j);
     }
 
     Ok(prop_array)
 }
 
-fn cache_props() {
-    loop {
-        if CACHE.is_expired() {
-            let props = process_props().expect("Error: Connection is down");
+fn generate_proposals() {
+    let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
 
-            let mut data = CACHE.proposals.lock().unwrap();
-            *data = props;
+    thread::spawn(move || -> () {
 
-            sleep(CACHE.cache_timeout);
+        loop {
+            let props: String = process_props().unwrap().join("\n");
+            let update_db = client.execute(
+                 "UPDATE proposals SET body = $1 WHERE id = 1;",
+                &[&props]
+            );
+
+            println!("{:?}", update_db);
+
+            thread::sleep(Duration::from_secs(5));
         }
-    }
+    });
 }
 
 #[get("/proposals")]
 fn hello_bi() -> String {
-    if !CACHE.is_expired() {
-        CACHE.proposals.lock().unwrap().join("\n")
-    } else {
-        let net_props = process_props().expect("Error: Connection is down");
-        net_props.join("\n")
+    let mut client2 = Client::connect(*DB_ADRESS, NoTls).unwrap();
+    let mut body: String = "".into();
+
+    for row in client2.query("SELECT body FROM proposals", &[]).unwrap() {
+        let value: String = row.get("body");
+        body = value;
     }
+
+    body
 }
 
 #[get("/")]
@@ -94,13 +80,13 @@ fn hello() -> &'static str {
     "Hello, world!"
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>>{
 
-    std::thread::spawn(move || {
-        cache_props();
-    });
+    generate_proposals();
 
     rocket::ignite()
         .mount("/", routes![hello, hello_bi])
         .launch();
+
+    Ok(())
 }
