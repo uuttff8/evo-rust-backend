@@ -15,7 +15,7 @@ use postgres::{Client, NoTls};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref DB_ADRESS: &'static str = "host=localhost user=postgres";
+    static ref DB_ADRESS: &'static str = "host=localhost user=postgres password=gakamaka";
 }
 
 
