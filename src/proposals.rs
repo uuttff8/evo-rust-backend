@@ -20,6 +20,7 @@ pub struct ProposalsRawData {
     pub proposal: Vec<ProposalRawData>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ProposalRawData {
     pub title: String,
     pub text_reference: String,
@@ -63,6 +64,45 @@ impl ProposalsRawData {
 }
 
 impl ProposalRawData {
+    pub fn new(id: u32) -> Result<ProposalRawData, Box<dyn Error>> {
+        let mut prop = ProposalRawData {
+            title: "".into(),
+            text_reference: "".into(),
+            text: None,
+        };
+
+        let html = reqwest::get("https://github.com/rust-lang/rfcs/tree/master/text")?.text()?;
+        let document = Html::parse_document(html.as_ref());
+
+        let selector_a = Selector::parse("a").unwrap();
+
+        for a in document.select(&selector_a) {
+            let a: ElementRef = a;
+
+            if a.value()
+                .has_class("js-navigation-open", CaseSensitivity::CaseSensitive)
+            {
+                if let Some(pat) = a.value().attr("title") {
+                    if pat.contains(&id.to_string()) {
+                        let href: String = a.value().attr("href").expect("what a hell").into();
+                        let title: String = a.value().attr("href").expect("what a hell").into();
+
+                        let valid_href = href.replace("/blob", "");
+                        let text = format!("https://raw.githubusercontent.com{}", &valid_href);
+
+                        prop = ProposalRawData {
+                            title,
+                            text_reference: href,
+                            text: Some(text),
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(prop)
+    }
+
     pub fn get_text(&mut self) -> Result<String, Box<dyn Error>> {
         let link = self.get_exact_link();
         let text = reqwest::get(link.as_str())?.text()?;

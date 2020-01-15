@@ -3,21 +3,20 @@
 
 mod proposals;
 
-use crate::proposals::ProposalsRawData;
 use crate::proposals::{ProposalJson, ProposalsJson};
+use crate::proposals::{ProposalRawData, ProposalsRawData};
 
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
-use rocket::{get, routes};
-use postgres::{Client, NoTls};
 use lazy_static::lazy_static;
+use postgres::{Client, NoTls};
+use rocket::{get, routes};
 
 lazy_static! {
-    static ref DB_ADRESS: &'static str = "host=localhost user=postgres password=gakamaka";
+    static ref DB_ADRESS: &'static str = "host=localhost user=postgres";
 }
-
 
 fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let proposals = ProposalsRawData::new()?.proposal;
@@ -47,13 +46,10 @@ fn generate_proposals() {
     let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
 
     thread::spawn(move || -> () {
-
         loop {
             let props: String = process_props().unwrap().join("\n");
-            let update_db = client.execute(
-                 "UPDATE proposals SET body = $1 WHERE id = 1;",
-                &[&props]
-            );
+            let update_db =
+                client.execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props]);
 
             println!("{:?}", update_db);
 
@@ -62,8 +58,14 @@ fn generate_proposals() {
     });
 }
 
+#[get("/proposal/<name>")]
+fn get_proposal(name: u32) -> String {
+    let props = ProposalRawData::new(name).unwrap();
+    format!("{}", serde_json::to_string_pretty(&props).unwrap())
+}
+
 #[get("/proposals")]
-fn hello_bi() -> String {
+fn proposals() -> String {
     let mut client2 = Client::connect(*DB_ADRESS, NoTls).unwrap();
     let mut body: String = "".into();
 
@@ -80,12 +82,11 @@ fn hello() -> &'static str {
     "Hello, world!"
 }
 
-fn main() -> Result<(), Box<dyn Error>>{
-
+fn main() -> Result<(), Box<dyn Error>> {
     generate_proposals();
 
     rocket::ignite()
-        .mount("/", routes![hello, hello_bi])
+        .mount("/", routes![hello, proposals, get_proposal])
         .launch();
 
     Ok(())
