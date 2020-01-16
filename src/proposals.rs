@@ -64,7 +64,7 @@ impl ProposalsRawData {
 }
 
 impl ProposalRawData {
-    pub fn new(id: u32) -> Result<ProposalRawData, Box<dyn Error>> {
+    pub fn new(id: String) -> Result<ProposalRawData, Box<dyn Error>> {
         let mut prop = ProposalRawData {
             title: "".into(),
             text_reference: "".into(),
@@ -89,6 +89,8 @@ impl ProposalRawData {
 
                         let valid_href = href.replace("/blob", "");
                         let text = format!("https://raw.githubusercontent.com{}", &valid_href);
+
+                        let title = title.chars().skip(33).collect();
 
                         prop = ProposalRawData {
                             title,
@@ -133,7 +135,6 @@ impl ProposalRawData {
         Ok(issue)
     }
 
-    // TODO: not to use reqwest on each date
     pub fn get_date(&mut self) -> Result<String, Box<dyn Error>> {
         let date_line: String = self
             .text
@@ -145,7 +146,7 @@ impl ProposalRawData {
 
         let date: String = date_line
             .chars()
-            .skip_while(|x| !(*x == ':'))
+            .skip_while(|x| *x != ':')
             .skip(2)
             .collect();
 
@@ -157,7 +158,7 @@ impl ProposalRawData {
             .text_reference
             .chars()
             .skip(33) // skip "/rust-lang/rfcs/blob/master/text/"
-            .take_while(|x| !(*x == '-'))
+            .take_while(|x| *x != '-')
             .collect();
 
         issue_number

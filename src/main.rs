@@ -45,22 +45,19 @@ fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
 fn generate_proposals() {
     let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
 
-    thread::spawn(move || -> () {
-        loop {
-            let props: String = process_props().unwrap().join("\n");
-            let update_db =
-                client.execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props]);
+    thread::spawn(move || loop {
+        let props: String = process_props().unwrap().join("\n");
+        let update_db = client.execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props]);
 
-            println!("{:?}", update_db);
+        println!("{:?}", update_db);
 
-            thread::sleep(Duration::from_secs(900));
-        }
+        thread::sleep(Duration::from_secs(900));
     });
 }
 
-#[get("/proposal/<name>")]
-fn get_proposal(name: u32) -> String {
-    let props = ProposalRawData::new(name).unwrap();
+#[get("/proposal/<id>")]
+fn get_proposal(id: String) -> String {
+    let props = ProposalRawData::new(id).unwrap();
     format!("{}", serde_json::to_string_pretty(&props).unwrap())
 }
 
