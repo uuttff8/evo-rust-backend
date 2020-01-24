@@ -1,18 +1,16 @@
-#![feature(proc_macro_hygiene)]
-#![feature(decl_macro)]
+#![feature(async_closure)]
 
 mod proposals;
 
 use crate::proposals::{ProposalJson, ProposalsJson};
 use crate::proposals::{ProposalRawData, ProposalsRawData};
 
-use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
+use actix_web::{web, App, HttpServer, Responder};
 use lazy_static::lazy_static;
 use postgres::{Client, NoTls};
-use rocket::{get, routes};
 
 lazy_static! {
     static ref DB_ADRESS: &'static str = "host=localhost user=postgres";
@@ -42,49 +40,61 @@ fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(prop_array)
 }
 
-fn generate_proposals() {
-    let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
+async fn generate_proposals() {
+    thread::spawn(async move || {
+        let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
 
-    thread::spawn(move || loop {
-        let props: String = process_props().unwrap().join("\n");
-        let update_db = client.execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props]);
+        loop {
+            let props: String = process_props().unwrap().join("\n");
+            let update_db =
+                client.execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props]);
+            println!("{:?}", update_db);
 
-        println!("{:?}", update_db);
-
-        thread::sleep(Duration::from_secs(900));
+            thread::sleep(Duration::from_secs(900));
+        }
     });
 }
 
-#[get("/proposal/<id>")]
-fn get_proposal(id: String) -> String {
-    let props = ProposalRawData::new(id).unwrap();
+async fn get_proposal(info: web::Path<String>) -> impl Responder {
+    let props = ProposalRawData::new(info.into_inner()).unwrap();
     format!("{}", serde_json::to_string_pretty(&props).unwrap())
 }
 
-#[get("/proposals")]
-fn proposals() -> String {
-    let mut client2 = Client::connect(*DB_ADRESS, NoTls).unwrap();
-    let mut body: String = "".into();
+async fn get_proposals() -> impl Responder {
+    let thread: String = thread::spawn(move || {
+        let mut client = Client::connect(*DB_ADRESS, NoTls).unwrap();
+        let mut body: String = "".into();
+        for row in client
+            .query("SELECT body FROM proposals", &[])
+            .expect("SELECT body is not queried")
+        {
+            let value: String = row.get("body");
+            body = value;
+        }
 
-    for row in client2.query("SELECT body FROM proposals", &[]).unwrap() {
-        let value: String = row.get("body");
-        body = value;
-    }
+        body
+    })
+    .join()
+    .unwrap();
 
-    body
+    thread
 }
 
-#[get("/")]
-fn hello() -> &'static str {
-    "Hello, world!"
+async fn index() -> impl Responder {
+    format!("Hello")
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    generate_proposals();
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
+    generate_proposals().await;
 
-    rocket::ignite()
-        .mount("/", routes![hello, proposals, get_proposal])
-        .launch();
-
-    Ok(())
+    HttpServer::new(|| {
+        App::new()
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(web::resource("/proposals").route(web::get().to(get_proposals)))
+            .service(web::resource("/proposal/{name}").route(web::get().to(get_proposal)))
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 }
