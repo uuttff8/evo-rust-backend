@@ -8,7 +8,7 @@ use crate::proposals::ProposalRawData;
 use actix_web::{web, App, HttpServer, Responder};
 
 async fn get_proposal(info: web::Path<String>) -> impl Responder {
-    let props = ProposalRawData::new(info.into_inner()).unwrap();
+    let props = ProposalRawData::new(info.into_inner()).expect("Unsuccess of getting proposal");
     format!("{}", serde_json::to_string_pretty(&props).unwrap())
 }
 
@@ -17,7 +17,7 @@ async fn get_proposals() -> impl Responder {
 }
 
 async fn index() -> impl Responder {
-    format!("Hello")
+    format!("Hello from uuttf8's backend")
 }
 
 #[actix_rt::main]

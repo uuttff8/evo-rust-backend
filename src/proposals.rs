@@ -3,24 +3,26 @@ use selectors::attr::CaseSensitivity;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProposalsJson {
     pub proposal: ProposalJson,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProposalJson {
     pub title: String,
     pub id: String,
     pub date: String,
     pub issue: String,
+    // pub text: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProposalsRawData {
-    pub proposal: Vec<ProposalRawData>,
+    pub proposals: Vec<ProposalRawData>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProposalRawData {
     pub title: String,
     pub text_reference: String,
@@ -30,7 +32,7 @@ pub struct ProposalRawData {
 impl ProposalsRawData {
     pub fn new() -> Result<ProposalsRawData, Box<dyn Error>> {
         let mut rfcs: ProposalsRawData = ProposalsRawData {
-            proposal: Vec::new(),
+            proposals: Vec::new(),
         };
 
         let html = reqwest::get("https://github.com/rust-lang/rfcs/tree/master/text")?.text()?;
@@ -49,7 +51,7 @@ impl ProposalsRawData {
                         let title: String = a.value().attr("title").expect("huiinya").into();
                         let href: String = a.value().attr("href").expect("what a hell").into();
 
-                        rfcs.proposal.push(ProposalRawData {
+                        rfcs.proposals.push(ProposalRawData {
                             title,
                             text_reference: href,
                             text: None,
@@ -177,7 +179,7 @@ impl IntoIterator for ProposalsRawData {
     fn into_iter(self) -> Self::IntoIter {
         let prop = ProposalsRawData::new()
             .expect("Please check your internet connection!")
-            .proposal;
+            .proposals;
         prop.into_iter()
     }
 }

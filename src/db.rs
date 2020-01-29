@@ -19,6 +19,7 @@ pub async fn get_proposals() -> String {
             eprintln!("connection error: {}", e);
         }
     });
+
     let mut body: String = "".into();
     for row in client
         .query("SELECT body FROM proposals", &[])
@@ -32,21 +33,29 @@ pub async fn get_proposals() -> String {
 }
 
 pub async fn generate_proposals() {
-    thread::spawn(async move || {
-        let (client, _) = tokio_postgres::connect(*DB_ADRESS, NoTls).await.unwrap();
+    tokio::spawn(async move {
+        let (client, connection) = tokio_postgres::connect(*DB_ADRESS, NoTls).await.unwrap();
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
         loop {
             let props: String = process_props().unwrap().join("\n");
+            dbg!(props.clone());
             let update_db = client
                 .execute("UPDATE proposals SET body = $1 WHERE id = 1;", &[&props])
                 .await;
             println!("{:?}", update_db);
-            thread::sleep(Duration::from_secs(900));
+            thread::sleep(Duration::from_secs(10));
         }
     });
 }
 
 fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let proposals = ProposalsRawData::new()?.proposal;
+    let proposals = ProposalsRawData::new()?.proposals;
 
     let mut prop_array = Vec::<String>::new();
 
@@ -63,6 +72,7 @@ fn process_props() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         };
 
         let j = serde_json::to_string(&props_json)?;
+
         prop_array.push(j);
     }
 
