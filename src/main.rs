@@ -2,7 +2,6 @@
 
 mod db;
 mod proposals;
-mod to_sql;
 
 use crate::proposals::ProposalRawData;
 
