@@ -3,15 +3,20 @@ use selectors::attr::CaseSensitivity;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProposalsJson {
-    pub proposal: ProposalJson,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct ProposalsJson {
+//     pub proposals: Vec<ProposalJson>,
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ProposalsJson {
+    pub proposals: Vec<ProposalJson>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ProposalJson {
     pub title: String,
-    pub id: String,
+    pub index: String,
     pub date: String,
     pub issue: String,
     // pub text: String,
@@ -93,6 +98,7 @@ impl ProposalRawData {
                         let text = format!("https://raw.githubusercontent.com{}", &valid_href);
 
                         let title = title.chars().skip(33).collect();
+                        dbg!(&title);
 
                         prop = ProposalRawData {
                             title,
@@ -155,7 +161,7 @@ impl ProposalRawData {
         Ok(date)
     }
 
-    pub fn get_id(&self) -> String {
+    pub fn get_index(&self) -> String {
         let issue_number: String = self
             .text_reference
             .chars()
